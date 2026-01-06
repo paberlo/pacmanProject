@@ -46,7 +46,7 @@ public class Ghost {
         for (int i = 0; i < 3; i++) {
             g.fillArc(x + i * waveWidth, y + SIZE - waveWidth/2, waveWidth, waveWidth, 180, 180);
         }
-        // Dibujar ojos
+        // Draw eyes
         g.setColor(Color.WHITE);
         g.fillOval(x + 3, y + 5, 6, 6);
         g.fillOval(x + 11, y + 5, 6, 6);
@@ -56,9 +56,9 @@ public class Ghost {
     }
 
     public void move() {
-        // Cambiar de dirección basado en el comportamiento
-        // Aumentada la frecuencia de cambios: de 1/15 a 1/8 para RANDOM
-        // CHASER y AMBUSHER cambian más frecuentemente: 1/5
+        // Change direction based on behavior
+        // Increased frequency: from 1/15 to 1/8 for RANDOM
+        // CHASER and AMBUSHER change more frequently: 1/5
         boolean shouldChangeDirection = false;
         
         switch (behavior) {
@@ -85,17 +85,17 @@ public class Ghost {
             case DOWN: nextY = y + SPEED; break;
         }
         
-        // Verificar si puede moverse en esa dirección
+        // Check if can move in that direction
         if (board.canMove(nextX, nextY, SIZE)) {
             x = nextX;
             y = nextY;
         } else {
-            // Si no puede moverse, elegir una dirección válida
+            // If can't move, choose a valid direction
             direction = chooseValidDirection();
         }
     }
     
-    // Elige una nueva dirección basada en el comportamiento del fantasma
+    // Choose a new direction based on the ghost's behavior
     private Direction chooseNewDirection() {
         switch (behavior) {
             case CHASER:
@@ -108,23 +108,23 @@ public class Ghost {
         }
     }
     
-    // Persigue directamente a Pacman
+    // Directly pursues Pacman
     private Direction chaseTarget(int targetX, int targetY) {
         int dx = targetX - x;
         int dy = targetY - y;
         
-        // Decidir si moverse horizontal o verticalmente
-        // Con más peso a la dirección de mayor distancia
+        // Decide whether to move horizontally or vertically
+        // Prioritize the direction with the greater distance
         if (Math.abs(dx) > Math.abs(dy)) {
-            // Moverse horizontalmente
+            // Move horizontally
             if (dx > 0) return Direction.RIGHT;
             else return Direction.LEFT;
         } else if (Math.abs(dy) > Math.abs(dx)) {
-            // Moverse verticalmente
+            // Move vertically
             if (dy > 0) return Direction.DOWN;
             else return Direction.UP;
         } else {
-            // Distancias iguales, elegir aleatoriamente
+            // Equal distances, choose randomly
             if (random.nextBoolean()) {
                 return dx > 0 ? Direction.RIGHT : Direction.LEFT;
             } else {
