@@ -3,8 +3,8 @@ import java.awt.event.*;
 
 public class Pacman {
     private int x, y;
-    private Direction direction = Direction.LEFT;
-    private Direction nextDirection = Direction.LEFT;
+    private Direction direction = Direction.DOWN;
+    private Direction nextDirection = Direction.DOWN;
     private int score = 0;
     private Board board;
     private static final int SIZE = 20;

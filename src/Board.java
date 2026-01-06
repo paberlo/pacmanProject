@@ -123,16 +123,18 @@ public class Board extends JPanel implements ActionListener {
             }
         }
         
-        // Posición inicial de Pacman según el nivel
+        // Posición inicial de Pacman según el nivel (en celda válida con camino)
+        // Fila 3, columna 9 es un camino con puntos en todos los niveles
         int pacmanX = 9 * CELL_SIZE;
-        int pacmanY = 15 * CELL_SIZE;
+        int pacmanY = 3 * CELL_SIZE;
         pacman = new Pacman(pacmanX, pacmanY, this);
         
-        // Fantasmas con posiciones diferentes según nivel
+        // Fantasmas en posiciones válidas para todos los niveles
+        // Posiciones (9,7), (6,7), (12,7) son caminos en todos los niveles
         ghosts = new Ghost[] {
             new Ghost(9 * CELL_SIZE, 7 * CELL_SIZE, Color.RED, this),
-            new Ghost(8 * CELL_SIZE, 8 * CELL_SIZE, Color.PINK, this),
-            new Ghost(10 * CELL_SIZE, 8 * CELL_SIZE, Color.CYAN, this)
+            new Ghost(6 * CELL_SIZE, 7 * CELL_SIZE, Color.PINK, this),
+            new Ghost(12 * CELL_SIZE, 7 * CELL_SIZE, Color.CYAN, this)
         };
         
         // Iniciar o reiniciar el timer
