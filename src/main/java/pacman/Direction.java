@@ -1,3 +1,5 @@
+package pacman;
+
 public enum Direction {
     LEFT(180), RIGHT(0), UP(90), DOWN(270);
 
