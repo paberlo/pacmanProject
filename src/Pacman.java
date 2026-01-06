@@ -79,4 +79,8 @@ public class Pacman {
     public int getY() {
         return y;
     }
+    
+    public Direction getDirection() {
+        return direction;
+    }
 }

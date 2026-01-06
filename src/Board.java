@@ -191,6 +191,21 @@ public class Board extends JPanel implements ActionListener {
     public int getCurrentLevel() {
         return currentLevel;
     }
+    
+    // Obtiene la posición X de Pacman (para la IA de los fantasmas)
+    public int getPacmanX() {
+        return pacman.getX();
+    }
+    
+    // Obtiene la posición Y de Pacman (para la IA de los fantasmas)
+    public int getPacmanY() {
+        return pacman.getY();
+    }
+    
+    // Obtiene la dirección actual de Pacman (para la IA de los fantasmas)
+    public Direction getPacmanDirection() {
+        return pacman.getDirection();
+    }
 
     @Override
     public void paintComponent(Graphics g) {
