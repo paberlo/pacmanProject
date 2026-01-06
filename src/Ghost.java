@@ -10,11 +10,13 @@ public class Ghost {
     private static final int SIZE = 20;
     private static final int SPEED = 3;
     private GhostBehavior behavior;
+    // Reusable array to reduce garbage collection pressure
+    private Direction[] validDirectionsBuffer = new Direction[4];
     
     public enum GhostBehavior {
-        CHASER,    // Persigue a Pacman directamente
-        AMBUSHER,  // Intenta emboscar a Pacman
-        RANDOM     // Movimiento aleatorio
+        CHASER,    // Directly pursues Pacman
+        AMBUSHER,  // Attempts to ambush Pacman
+        RANDOM     // Random movement
     }
 
     public Ghost(int x, int y, Color color, Board board) {
@@ -24,7 +26,7 @@ public class Ghost {
         this.board = board;
         this.direction = Direction.values()[random.nextInt(4)];
         
-        // Asignar comportamiento basado en el color
+        // Assign behavior based on ghost color
         if (color.equals(Color.RED)) {
             this.behavior = GhostBehavior.CHASER;
         } else if (color.equals(Color.PINK)) {
@@ -131,14 +133,14 @@ public class Ghost {
         }
     }
     
-    // Intenta emboscar a Pacman (moverse hacia donde va Pacman)
+    // Attempts to ambush Pacman (move toward where Pacman is going)
     private Direction ambushTarget(int targetX, int targetY) {
-        // Predecir posición futura de Pacman (aproximadamente 4 celdas adelante)
+        // Predict Pacman's future position (approximately 4 cells ahead)
         Direction pacmanDir = board.getPacmanDirection();
         int predictX = targetX;
         int predictY = targetY;
         
-        int prediction = 80; // 4 celdas * 20 pixels
+        int prediction = 4 * SIZE; // 4 cells ahead
         switch (pacmanDir) {
             case LEFT: predictX -= prediction; break;
             case RIGHT: predictX += prediction; break;
@@ -146,17 +148,16 @@ public class Ghost {
             case DOWN: predictY += prediction; break;
         }
         
-        // Perseguir la posición predicha
+        // Chase the predicted position
         return chaseTarget(predictX, predictY);
     }
     
-    // Elige una dirección válida (no bloqueada por paredes)
+    // Choose a valid direction (not blocked by walls)
     private Direction chooseValidDirection() {
         Direction[] directions = Direction.values();
-        Direction[] validDirections = new Direction[4];
         int validCount = 0;
         
-        // Encontrar todas las direcciones válidas
+        // Find all valid directions
         for (Direction dir : directions) {
             int testX = x;
             int testY = y;
@@ -169,32 +170,57 @@ public class Ghost {
             }
             
             if (board.canMove(testX, testY, SIZE)) {
-                validDirections[validCount++] = dir;
+                validDirectionsBuffer[validCount++] = dir;
             }
         }
         
-        // Si hay direcciones válidas, elegir una basada en el comportamiento
+        // If there are valid directions, choose one based on behavior
         if (validCount > 0) {
             if (behavior == GhostBehavior.RANDOM) {
-                // Para RANDOM, elegir aleatoriamente entre las válidas
-                return validDirections[random.nextInt(validCount)];
+                // For RANDOM, choose randomly from valid directions
+                return validDirectionsBuffer[random.nextInt(validCount)];
             } else {
-                // Para CHASER y AMBUSHER, elegir la mejor dirección válida
-                Direction targetDir = chooseNewDirection();
+                // For CHASER and AMBUSHER, try to choose the best valid direction
+                // Calculate target direction directly here to avoid recursion
+                int targetX = board.getPacmanX();
+                int targetY = board.getPacmanY();
                 
-                // Verificar si la dirección objetivo es válida
+                if (behavior == GhostBehavior.AMBUSHER) {
+                    // Predict future position for ambusher
+                    Direction pacmanDir = board.getPacmanDirection();
+                    int prediction = 4 * SIZE;
+                    switch (pacmanDir) {
+                        case LEFT: targetX -= prediction; break;
+                        case RIGHT: targetX += prediction; break;
+                        case UP: targetY -= prediction; break;
+                        case DOWN: targetY += prediction; break;
+                    }
+                }
+                
+                // Calculate best direction toward target
+                int dx = targetX - x;
+                int dy = targetY - y;
+                Direction targetDir;
+                
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    targetDir = dx > 0 ? Direction.RIGHT : Direction.LEFT;
+                } else {
+                    targetDir = dy > 0 ? Direction.DOWN : Direction.UP;
+                }
+                
+                // Check if target direction is valid
                 for (int i = 0; i < validCount; i++) {
-                    if (validDirections[i] == targetDir) {
+                    if (validDirectionsBuffer[i] == targetDir) {
                         return targetDir;
                     }
                 }
                 
-                // Si no, elegir la primera dirección válida
-                return validDirections[0];
+                // If not, choose the first valid direction
+                return validDirectionsBuffer[0];
             }
         }
         
-        // Si no hay direcciones válidas, mantener la dirección actual
+        // If no valid directions exist, maintain current direction
         return direction;
     }
     
