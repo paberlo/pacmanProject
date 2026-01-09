@@ -6,6 +6,8 @@ public class Ghost {
     private Direction direction;
     private Color color;
     private Random random = new Random();
+    private final int SIZE = 20;
+    private final int STEP = 4;
 
     public Ghost(int x, int y, Color color) {
         this.x = x;
@@ -16,19 +18,30 @@ public class Ghost {
 
     public void draw(Graphics g) {
         g.setColor(color);
-        g.fillOval(x, y, 20, 20);
+        g.fillOval(x, y, SIZE, SIZE);
     }
 
-    public void move() {
+    public void move(Board board) {
+        // randomly change direction occasionally
         if (random.nextInt(10) == 0) {
             direction = Direction.values()[random.nextInt(4)];
         }
+
+        int nextX = x;
+        int nextY = y;
         switch (direction) {
-            case LEFT: x -= 4; break;
-            case RIGHT: x += 4; break;
-            case UP: y -= 4; break;
-            case DOWN: y += 4; break;
+            case LEFT: nextX -= STEP; break;
+            case RIGHT: nextX += STEP; break;
+            case UP: nextY -= STEP; break;
+            case DOWN: nextY += STEP; break;
         }
-        // Aquí puedes agregar lógica de colisiones con el laberinto
+
+        // if collision, pick a new direction
+        if (board.isCollisionBoxWall(nextX, nextY, SIZE, SIZE)) {
+            direction = Direction.values()[random.nextInt(4)];
+        } else {
+            x = nextX;
+            y = nextY;
+        }
     }
 }

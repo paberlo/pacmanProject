@@ -5,6 +5,8 @@ public class Pacman {
     private int x, y;
     private Direction direction = Direction.LEFT;
     private int score = 0;
+    private final int SIZE = 20;
+    private final int STEP = 4;
 
     public Pacman(int x, int y) {
         this.x = x;
@@ -13,17 +15,23 @@ public class Pacman {
 
     public void draw(Graphics g) {
         g.setColor(Color.YELLOW);
-        g.fillArc(x, y, 20, 20, direction.getAngle(), 300);
+        g.fillArc(x, y, SIZE, SIZE, direction.getAngle(), 300);
     }
 
-    public void move() {
+    public void move(Board board) {
+        int nextX = x;
+        int nextY = y;
         switch (direction) {
-            case LEFT: x -= 4; break;
-            case RIGHT: x += 4; break;
-            case UP: y -= 4; break;
-            case DOWN: y += 4; break;
+            case LEFT: nextX -= STEP; break;
+            case RIGHT: nextX += STEP; break;
+            case UP: nextY -= STEP; break;
+            case DOWN: nextY += STEP; break;
         }
-        // Aquí puedes agregar lógica para colisiones con el laberinto
+        // check collision with walls via board
+        if (!board.isCollisionBoxWall(nextX, nextY, SIZE, SIZE)) {
+            x = nextX;
+            y = nextY;
+        }
     }
 
     public void keyPressed(KeyEvent e) {
@@ -38,4 +46,11 @@ public class Pacman {
     public int getScore() {
         return score;
     }
+
+    public void addScore(int v) {
+        score += v;
+    }
+
+    public int getX() { return x; }
+    public int getY() { return y; }
 }
