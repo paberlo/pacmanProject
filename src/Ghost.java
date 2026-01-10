@@ -1,177 +1,140 @@
 import java.awt.*;
 import java.util.Random;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Ghost {
     private int x, y;
+    private int startX, startY; // Posición inicial para respawn
     private Direction direction;
     private Color color;
     private Random random = new Random();
     private Board board;
     private static final int SIZE = 20;
-    private static final int SPEED = 3;
-    private GhostBehavior behavior;
-    // Reusable array to reduce garbage collection pressure
-    private Direction[] validDirectionsBuffer = new Direction[4];
-    
-    public enum GhostBehavior {
-        CHASER,    // Directly pursues Pacman
-        AMBUSHER,  // Attempts to ambush Pacman
-        RANDOM     // Random movement
-    }
+    private static final int CELL_SIZE = 20;
+    private int speed = 4; // Misma base que Pacman
+    private boolean scared = false;
+    private boolean eaten = false;
+    private int eatenTimer = 0;
 
-    public Ghost(int x, int y, Color color, Board board) {
+    // Tipo de fantasma para diferentes comportamientos
+    public enum GhostType { BLINKY, PINKY, INKY, CLYDE }
+    private GhostType type;
+
+    public Ghost(int x, int y, Color color, Board board, GhostType type) {
         this.x = x;
         this.y = y;
+        this.startX = x;
+        this.startY = y;
         this.color = color;
         this.board = board;
-        this.direction = Direction.values()[random.nextInt(4)];
-        
-        // Assign behavior based on ghost color
-        if (color.equals(Color.RED)) {
-            this.behavior = GhostBehavior.CHASER;
-        } else if (color.equals(Color.PINK)) {
-            this.behavior = GhostBehavior.AMBUSHER;
-        } else {
-            this.behavior = GhostBehavior.RANDOM;
-        }
+        this.type = type;
+        this.direction = Direction.UP;
+    }
+
+    // Constructor compatible con el anterior
+    public Ghost(int x, int y, Color color, Board board) {
+        this(x, y, color, board, GhostType.BLINKY);
     }
 
     public void draw(Graphics g) {
-        g.setColor(color);
+        if (eaten) {
+            // Solo dibujar ojos cuando fue comido
+            drawEyes(g, x, y);
+            return;
+        }
+
+        Color drawColor;
+        if (scared) {
+            // Parpadeo cuando el power mode está por terminar
+            if (board.getPowerModeTimer() < 60 && (board.getPowerModeTimer() / 10) % 2 == 0) {
+                drawColor = Color.WHITE;
+            } else {
+                drawColor = new Color(0, 0, 180);
+            }
+        } else {
+            drawColor = color;
+        }
+
+        g.setColor(drawColor);
+
         // Dibujar cuerpo del fantasma
         g.fillArc(x, y, SIZE, SIZE, 0, 180);
         g.fillRect(x, y + SIZE/2, SIZE, SIZE/2);
+
         // Dibujar ondas en la parte inferior
         int waveWidth = SIZE / 3;
         for (int i = 0; i < 3; i++) {
             g.fillArc(x + i * waveWidth, y + SIZE - waveWidth/2, waveWidth, waveWidth, 180, 180);
         }
-        // Draw eyes
-        g.setColor(Color.WHITE);
-        g.fillOval(x + 3, y + 5, 6, 6);
-        g.fillOval(x + 11, y + 5, 6, 6);
-        g.setColor(Color.BLUE);
-        g.fillOval(x + 4, y + 6, 4, 4);
-        g.fillOval(x + 12, y + 6, 4, 4);
+
+        // Dibujar ojos
+        drawEyes(g, x, y);
+    }
+
+    private void drawEyes(Graphics g, int px, int py) {
+        if (scared && !eaten) {
+            // Ojos asustados
+            g.setColor(Color.WHITE);
+            g.fillOval(px + 4, py + 6, 5, 5);
+            g.fillOval(px + 11, py + 6, 5, 5);
+        } else {
+            // Ojos normales mirando en la dirección del movimiento
+            g.setColor(Color.WHITE);
+            g.fillOval(px + 3, py + 4, 7, 7);
+            g.fillOval(px + 10, py + 4, 7, 7);
+
+            // Pupilas que miran en la dirección del movimiento
+            g.setColor(Color.BLUE);
+            int pupilOffsetX = 0, pupilOffsetY = 0;
+            switch (direction) {
+                case LEFT: pupilOffsetX = -1; break;
+                case RIGHT: pupilOffsetX = 2; break;
+                case UP: pupilOffsetY = -1; break;
+                case DOWN: pupilOffsetY = 2; break;
+            }
+            g.fillOval(px + 5 + pupilOffsetX, py + 6 + pupilOffsetY, 3, 3);
+            g.fillOval(px + 12 + pupilOffsetX, py + 6 + pupilOffsetY, 3, 3);
+        }
     }
 
     public void move() {
-        // Change direction based on behavior
-        // Increased frequency: from 1/15 to 1/8 for RANDOM
-        // CHASER and AMBUSHER change more frequently: 1/5
-        boolean shouldChangeDirection = false;
-        
-        switch (behavior) {
-            case CHASER:
-            case AMBUSHER:
-                shouldChangeDirection = random.nextInt(5) == 0;
-                break;
-            case RANDOM:
-                shouldChangeDirection = random.nextInt(8) == 0;
-                break;
+        if (eaten) {
+            // Volver a la base
+            moveToBase();
+            return;
         }
-        
-        if (shouldChangeDirection) {
-            direction = chooseNewDirection();
+
+        // Verificar si está alineado para poder cambiar de dirección
+        if (isAligned()) {
+            Direction newDir = chooseDirection();
+            if (newDir != null) {
+                direction = newDir;
+            }
         }
         
         int nextX = x;
         int nextY = y;
         
+        int currentSpeed = scared ? 2 : speed; // Más lento cuando asustado
+
         switch (direction) {
-            case LEFT: nextX = x - SPEED; break;
-            case RIGHT: nextX = x + SPEED; break;
-            case UP: nextY = y - SPEED; break;
-            case DOWN: nextY = y + SPEED; break;
+            case LEFT: nextX = x - currentSpeed; break;
+            case RIGHT: nextX = x + currentSpeed; break;
+            case UP: nextY = y - currentSpeed; break;
+            case DOWN: nextY = y + currentSpeed; break;
         }
         
-        // Check if can move in that direction
+        // Aplicar túneles
+        int[] tunnelPos = board.handleTunnel(nextX, nextY);
+        nextX = tunnelPos[0];
+        nextY = tunnelPos[1];
+
         if (board.canMove(nextX, nextY, SIZE)) {
             x = nextX;
             y = nextY;
         } else {
-            // If can't move, choose a valid direction
-            direction = chooseValidDirection();
-        }
-    }
-    
-    // Choose a new direction based on the ghost's behavior
-    private Direction chooseNewDirection() {
-        switch (behavior) {
-            case CHASER:
-                return chaseTarget(board.getPacmanX(), board.getPacmanY());
-            case AMBUSHER:
-                return ambushTarget(board.getPacmanX(), board.getPacmanY());
-            case RANDOM:
-            default:
-                return Direction.values()[random.nextInt(4)];
-        }
-    }
-    
-    // Directly pursues Pacman
-    private Direction chaseTarget(int targetX, int targetY) {
-        int dx = targetX - x;
-        int dy = targetY - y;
-        
-        // Decide whether to move horizontally or vertically
-        // Prioritize the direction with the greater distance
-        if (Math.abs(dx) > Math.abs(dy)) {
-            // Move horizontally
-            if (dx > 0) return Direction.RIGHT;
-            else return Direction.LEFT;
-        } else if (Math.abs(dy) > Math.abs(dx)) {
-            // Move vertically
-            if (dy > 0) return Direction.DOWN;
-            else return Direction.UP;
-        } else {
-            // Equal distances, choose randomly
-            if (random.nextBoolean()) {
-                return dx > 0 ? Direction.RIGHT : Direction.LEFT;
-            } else {
-                return dy > 0 ? Direction.DOWN : Direction.UP;
-            }
-        }
-    }
-    
-    // Attempts to ambush Pacman (move toward where Pacman is going)
-    private Direction ambushTarget(int targetX, int targetY) {
-        // Predict Pacman's future position (approximately 4 cells ahead)
-        Direction pacmanDir = board.getPacmanDirection();
-        int predictX = targetX;
-        int predictY = targetY;
-        
-        int prediction = 4 * SIZE; // 4 cells ahead
-        switch (pacmanDir) {
-            case LEFT: predictX -= prediction; break;
-            case RIGHT: predictX += prediction; break;
-            case UP: predictY -= prediction; break;
-            case DOWN: predictY += prediction; break;
-        }
-        
-        // Chase the predicted position
-        return chaseTarget(predictX, predictY);
-    }
-    
-    // Choose a valid direction (not blocked by walls)
-    private Direction chooseValidDirection() {
-        Direction[] directions = Direction.values();
-        int validCount = 0;
-        
-        // Find all valid directions
-        for (Direction dir : directions) {
-            int testX = x;
-            int testY = y;
-            
-            switch (dir) {
-                case LEFT: testX = x - SPEED; break;
-                case RIGHT: testX = x + SPEED; break;
-                case UP: testY = y - SPEED; break;
-                case DOWN: testY = y + SPEED; break;
-            }
-            
-            if (board.canMove(testX, testY, SIZE)) {
-                validDirectionsBuffer[validCount++] = dir;
-            }
+            alignToGrid();
         }
         
         // If there are valid directions, choose one based on behavior
@@ -223,12 +186,195 @@ public class Ghost {
         // If no valid directions exist, maintain current direction
         return direction;
     }
-    
-    public int getX() {
-        return x;
+
+    private void moveToBase() {
+        eatenTimer++;
+        // Mover rápidamente hacia la base
+        int targetX = startX;
+        int targetY = startY;
+
+        if (Math.abs(x - targetX) > 2) {
+            x += (x < targetX) ? 4 : -4;
+        } else if (Math.abs(y - targetY) > 2) {
+            y += (y < targetY) ? 4 : -4;
+        } else {
+            // Llegó a la base
+            x = targetX;
+            y = targetY;
+            eaten = false;
+            scared = false;
+            eatenTimer = 0;
+        }
+    }
+
+    private Direction chooseDirection() {
+        if (scared) {
+            return chooseRandomDirection();
+        }
+
+        // Obtener posición objetivo según el tipo de fantasma
+        int[] target = getTargetTile();
+
+        // Encontrar la mejor dirección hacia el objetivo
+        return chooseBestDirection(target[0], target[1]);
+    }
+
+    private int[] getTargetTile() {
+        int pacX = board.getPacmanX();
+        int pacY = board.getPacmanY();
+        Direction pacDir = board.getPacmanDirection();
+
+        switch (type) {
+            case BLINKY: // Persigue directamente a Pacman
+                return new int[]{pacX, pacY};
+
+            case PINKY: // Apunta 4 celdas delante de Pacman
+                int offsetX = 0, offsetY = 0;
+                switch (pacDir) {
+                    case LEFT: offsetX = -4 * CELL_SIZE; break;
+                    case RIGHT: offsetX = 4 * CELL_SIZE; break;
+                    case UP: offsetY = -4 * CELL_SIZE; break;
+                    case DOWN: offsetY = 4 * CELL_SIZE; break;
+                }
+                return new int[]{pacX + offsetX, pacY + offsetY};
+
+            case INKY: // Comportamiento más errático
+                if (random.nextInt(3) == 0) {
+                    return new int[]{pacX, pacY};
+                }
+                return new int[]{pacX + random.nextInt(100) - 50, pacY + random.nextInt(100) - 50};
+
+            case CLYDE: // Persigue si está lejos, huye si está cerca
+                double dist = Math.sqrt(Math.pow(x - pacX, 2) + Math.pow(y - pacY, 2));
+                if (dist > 8 * CELL_SIZE) {
+                    return new int[]{pacX, pacY};
+                } else {
+                    // Ir a la esquina inferior izquierda
+                    return new int[]{0, board.getBoardHeight()};
+                }
+
+            default:
+                return new int[]{pacX, pacY};
+        }
     }
     
-    public int getY() {
-        return y;
+    private Direction chooseBestDirection(int targetX, int targetY) {
+        List<Direction> possibleDirs = getPossibleDirections();
+
+        if (possibleDirs.isEmpty()) {
+            return direction;
+        }
+
+        Direction bestDir = possibleDirs.get(0);
+        double bestDist = Double.MAX_VALUE;
+
+        for (Direction dir : possibleDirs) {
+            int nextX = x, nextY = y;
+            switch (dir) {
+                case LEFT: nextX -= CELL_SIZE; break;
+                case RIGHT: nextX += CELL_SIZE; break;
+                case UP: nextY -= CELL_SIZE; break;
+                case DOWN: nextY += CELL_SIZE; break;
+            }
+
+            double dist = Math.sqrt(Math.pow(nextX - targetX, 2) + Math.pow(nextY - targetY, 2));
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestDir = dir;
+            }
+        }
+
+        return bestDir;
     }
+
+    private Direction chooseRandomDirection() {
+        List<Direction> possibleDirs = getPossibleDirections();
+        if (possibleDirs.isEmpty()) {
+            return direction;
+        }
+        return possibleDirs.get(random.nextInt(possibleDirs.size()));
+    }
+
+    private List<Direction> getPossibleDirections() {
+        List<Direction> dirs = new ArrayList<>();
+        Direction opposite = getOppositeDirection(direction);
+
+        for (Direction dir : Direction.values()) {
+            // No puede dar media vuelta (excepto si es la única opción)
+            if (dir == opposite) continue;
+
+            int nextX = x, nextY = y;
+            switch (dir) {
+                case LEFT: nextX -= CELL_SIZE; break;
+                case RIGHT: nextX += CELL_SIZE; break;
+                case UP: nextY -= CELL_SIZE; break;
+                case DOWN: nextY += CELL_SIZE; break;
+            }
+
+            if (board.canMove(nextX, nextY, SIZE)) {
+                dirs.add(dir);
+            }
+        }
+
+        // Si no hay direcciones posibles, permitir dar media vuelta
+        if (dirs.isEmpty() && opposite != null) {
+            int nextX = x, nextY = y;
+            switch (opposite) {
+                case LEFT: nextX -= CELL_SIZE; break;
+                case RIGHT: nextX += CELL_SIZE; break;
+                case UP: nextY -= CELL_SIZE; break;
+                case DOWN: nextY += CELL_SIZE; break;
+            }
+            if (board.canMove(nextX, nextY, SIZE)) {
+                dirs.add(opposite);
+            }
+        }
+
+        return dirs;
+    }
+
+    private Direction getOppositeDirection(Direction dir) {
+        switch (dir) {
+            case LEFT: return Direction.RIGHT;
+            case RIGHT: return Direction.LEFT;
+            case UP: return Direction.DOWN;
+            case DOWN: return Direction.UP;
+            default: return null;
+        }
+    }
+
+    private boolean isAligned() {
+        return (x % CELL_SIZE == 0) && (y % CELL_SIZE == 0);
+    }
+
+    private void alignToGrid() {
+        x = Math.round((float) x / CELL_SIZE) * CELL_SIZE;
+        y = Math.round((float) y / CELL_SIZE) * CELL_SIZE;
+    }
+
+    public int getX() { return x; }
+    public int getY() { return y; }
+
+    public void setPosition(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public void setScared(boolean scared) {
+        this.scared = scared;
+        if (!scared) {
+            this.eaten = false;
+        }
+    }
+
+    public boolean isScared() { return scared; }
+
+    public void setEaten(boolean eaten) {
+        this.eaten = eaten;
+        if (eaten) {
+            this.scared = false;
+        }
+    }
+
+    public boolean isEaten() { return eaten; }
 }
