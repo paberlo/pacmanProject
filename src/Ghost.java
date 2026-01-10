@@ -136,6 +136,55 @@ public class Ghost {
         } else {
             alignToGrid();
         }
+        
+        // If there are valid directions, choose one based on behavior
+        if (validCount > 0) {
+            if (behavior == GhostBehavior.RANDOM) {
+                // For RANDOM, choose randomly from valid directions
+                return validDirectionsBuffer[random.nextInt(validCount)];
+            } else {
+                // For CHASER and AMBUSHER, try to choose the best valid direction
+                // Calculate target direction directly here to avoid recursion
+                int targetX = board.getPacmanX();
+                int targetY = board.getPacmanY();
+                
+                if (behavior == GhostBehavior.AMBUSHER) {
+                    // Predict future position for ambusher
+                    Direction pacmanDir = board.getPacmanDirection();
+                    int prediction = 4 * SIZE;
+                    switch (pacmanDir) {
+                        case LEFT: targetX -= prediction; break;
+                        case RIGHT: targetX += prediction; break;
+                        case UP: targetY -= prediction; break;
+                        case DOWN: targetY += prediction; break;
+                    }
+                }
+                
+                // Calculate best direction toward target
+                int dx = targetX - x;
+                int dy = targetY - y;
+                Direction targetDir;
+                
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    targetDir = dx > 0 ? Direction.RIGHT : Direction.LEFT;
+                } else {
+                    targetDir = dy > 0 ? Direction.DOWN : Direction.UP;
+                }
+                
+                // Check if target direction is valid
+                for (int i = 0; i < validCount; i++) {
+                    if (validDirectionsBuffer[i] == targetDir) {
+                        return targetDir;
+                    }
+                }
+                
+                // If not, choose the first valid direction
+                return validDirectionsBuffer[0];
+            }
+        }
+        
+        // If no valid directions exist, maintain current direction
+        return direction;
     }
 
     private void moveToBase() {

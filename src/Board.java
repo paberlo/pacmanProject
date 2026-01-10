@@ -285,6 +285,21 @@ public class Board extends JPanel implements ActionListener {
     public int getCurrentLevel() {
         return currentLevel;
     }
+    
+    // Get Pacman's X position (for ghost AI)
+    public int getPacmanX() {
+        return pacman.getX();
+    }
+    
+    // Get Pacman's Y position (for ghost AI)
+    public int getPacmanY() {
+        return pacman.getY();
+    }
+    
+    // Get Pacman's current direction (for ghost AI)
+    public Direction getPacmanDirection() {
+        return pacman.getDirection();
+    }
 
     @Override
     public void paintComponent(Graphics g) {

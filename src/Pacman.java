@@ -119,4 +119,8 @@ public class Pacman {
         this.x = x;
         this.y = y;
     }
+    
+    public Direction getDirection() {
+        return direction;
+    }
 }
